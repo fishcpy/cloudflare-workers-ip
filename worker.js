@@ -19,11 +19,30 @@ function getMockIpInfo(ip) {
     return { city: mockData[ip].city, isp: mockData[ip].isp };
   }
   
-  // 简单的IP段判断
-  if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
-    return { city: '内网地址', isp: '局域网' };
+  // 详细的IP段判断
+  if (ip.startsWith('192.168.')) {
+    return { city: '私有网络(C类)', isp: '局域网设备' };
+  } else if (ip.startsWith('10.')) {
+    return { city: '私有网络(A类)', isp: '企业内网' };
+  } else if (ip.startsWith('172.')) {
+    // 检查是否在172.16.0.0-172.31.255.255范围内
+    const parts = ip.split('.');
+    if (parts.length >= 2 && parseInt(parts[1]) >= 16 && parseInt(parts[1]) <= 31) {
+      return { city: '私有网络(B类)', isp: '企业内网' };
+    } else {
+      return { city: '未知地区', isp: '未知运营商' };
+    }
   } else if (ip.startsWith('127.')) {
     return { city: '本地回环', isp: '本机' };
+  } else if (ip.startsWith('169.254.')) {
+    return { city: 'APIPA地址', isp: '自动配置' };
+  } else if (ip.startsWith('224.') || ip.startsWith('225.') || ip.startsWith('226.') || 
+             ip.startsWith('227.') || ip.startsWith('228.') || ip.startsWith('229.') || 
+             ip.startsWith('230.') || ip.startsWith('231.') || ip.startsWith('232.') || 
+             ip.startsWith('233.') || ip.startsWith('234.') || ip.startsWith('235.') || 
+             ip.startsWith('236.') || ip.startsWith('237.') || ip.startsWith('238.') || 
+             ip.startsWith('239.')) {
+    return { city: '组播地址', isp: '多播网络' };
   } else {
     return { city: '未知地区', isp: '未知运营商' };
   }

@@ -50,11 +50,24 @@ def get_mock_ip_info(ip):
     if ip in mock_data:
         return mock_data[ip]['city'], mock_data[ip]['isp']
     
-    # 简单的IP段判断
-    if ip.startswith('192.168.') or ip.startswith('10.') or ip.startswith('172.'):
-        return '内网地址', '局域网'
+    # 详细的IP段判断
+    if ip.startswith('192.168.'):
+        return '私有网络(C类)', '局域网设备'
+    elif ip.startswith('10.'):
+        return '私有网络(A类)', '企业内网'
+    elif ip.startswith('172.'):
+        # 检查是否在172.16.0.0-172.31.255.255范围内
+        parts = ip.split('.')
+        if len(parts) >= 2 and 16 <= int(parts[1]) <= 31:
+            return '私有网络(B类)', '企业内网'
+        else:
+            return '未知地区', '未知运营商'
     elif ip.startswith('127.'):
         return '本地回环', '本机'
+    elif ip.startswith('169.254.'):
+        return 'APIPA地址', '自动配置'
+    elif ip.startswith('224.') or ip.startswith('225.') or ip.startswith('226.') or ip.startswith('227.') or ip.startswith('228.') or ip.startswith('229.') or ip.startswith('230.') or ip.startswith('231.') or ip.startswith('232.') or ip.startswith('233.') or ip.startswith('234.') or ip.startswith('235.') or ip.startswith('236.') or ip.startswith('237.') or ip.startswith('238.') or ip.startswith('239.'):
+        return '组播地址', '多播网络'
     else:
         return '未知地区', '未知运营商'
 

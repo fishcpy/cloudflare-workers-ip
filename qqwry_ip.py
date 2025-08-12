@@ -7,35 +7,101 @@ import flask
 from flask import request, jsonify
 from flask_cors import CORS
 
+# 尝试导入CZDB模块
+try:
+    from czdb.db_searcher import DbSearcher
+    CZDB_AVAILABLE = True
+except ImportError:
+    CZDB_AVAILABLE = False
+    print("CZDB模块不可用，将使用QQwry数据库")
+
 server = flask.Flask(__name__)
 server.config['JSON_AS_ASCII'] = False
 server.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 CORS(server)
 
 wry = None
+czdb_searcher = None
 database_loaded = False
+database_type = None
 
 def load_ip_database():
-    global wry, database_loaded
+    global wry, czdb_searcher, database_loaded, database_type
+    
+    # 优先尝试加载CZDB数据库
+    if CZDB_AVAILABLE:
+        czdb_files = [f for f in os.listdir('.') if f.endswith('.czdb')]
+        if czdb_files:
+            try:
+                # 这里需要密钥，如果没有密钥文件，使用默认值
+                key = ""
+                key_file = "czdb.key"
+                if os.path.exists(key_file):
+                    with open(key_file, 'r') as f:
+                        key = f.read().strip()
+                
+                czdb_searcher = DbSearcher(czdb_files[0], "MEMORY", key)
+                print(f"CZDB数据库加载成功: {czdb_files[0]}")
+                database_loaded = True
+                database_type = "CZDB"
+                return
+            except Exception as e:
+                print(f"CZDB数据库加载失败: {e}")
+                czdb_searcher = None
+    
+    # 回退到QQwry数据库
     try:
         wry = QQwry()
         if os.path.exists('qqwry.dat'):
             wry.load_file('qqwry.dat')
-            print("IP数据库加载成功")
+            print("QQwry数据库加载成功")
             database_loaded = True
+            database_type = "QQwry"
         elif os.path.exists('ip.dat'):
             wry.load_file('ip.dat')
-            print("IP数据库加载成功")
+            print("QQwry数据库加载成功")
             database_loaded = True
+            database_type = "QQwry"
         else:
             print("未找到IP数据库文件，使用模拟数据")
             wry = None
             database_loaded = False
+            database_type = "Mock"
     except Exception as e:
-        print(f"IP数据库加载失败: {e}")
+        print(f"QQwry数据库加载失败: {e}")
         print("将使用模拟数据提供服务")
         wry = None
         database_loaded = False
+        database_type = "Mock"
+
+def query_ip_info(ip):
+    """查询IP信息，支持多种数据库"""
+    if database_type == "CZDB" and czdb_searcher:
+        try:
+            result = czdb_searcher.search(ip)
+            if result:
+                # CZDB返回的是字符串，需要解析
+                parts = result.split('\t') if '\t' in result else result.split(' ')
+                if len(parts) >= 2:
+                    return parts[0], parts[1]
+                else:
+                    return result, "未知运营商"
+            else:
+                return get_mock_ip_info(ip)
+        except Exception as e:
+            print(f"CZDB查询失败: {e}")
+            return get_mock_ip_info(ip)
+    elif database_type == "QQwry" and wry:
+        try:
+            info = wry.lookup(ip)
+            city = info[0] if info[0] else '未知'
+            isp = info[1] if info[1] else '未知'
+            return city, isp
+        except Exception as e:
+            print(f"QQwry查询失败: {e}")
+            return get_mock_ip_info(ip)
+    else:
+        return get_mock_ip_info(ip)
 
 def get_mock_ip_info(ip):
     """提供模拟的IP信息，用于演示"""
@@ -85,17 +151,9 @@ def index():
             visitor_ip = request.remote_addr
         
         # 查询访客IP信息
-        if database_loaded and wry:
-            try:
-                info = wry.lookup(visitor_ip)
-                city = info[0] if info[0] else '未知'
-                isp = info[1] if info[1] else '未知'
-            except Exception as e:
-                city, isp = get_mock_ip_info(visitor_ip)
-        else:
-            city, isp = get_mock_ip_info(visitor_ip)
+        city, isp = query_ip_info(visitor_ip)
         
-        res = {'ip': visitor_ip, 'city': city, 'isp': isp, 'database': '真实数据库' if database_loaded else '模拟数据'}
+        res = {'ip': visitor_ip, 'city': city, 'isp': isp, 'database': database_type or '模拟数据'}
         print(res)
         
         # 使用json.dumps确保中文正确编码
@@ -119,18 +177,9 @@ def location():
         if not re.match(ip_pattern, ip):
             return jsonify({'error': 'IP地址格式不正确'}), 400
         
-        if database_loaded and wry:
-            try:
-                info = wry.lookup(ip)
-                city = info[0] if info[0] else '未知'
-                isp = info[1] if info[1] else '未知'
-            except Exception as e:
-                print(f"查询出错，使用模拟数据: {e}")
-                city, isp = get_mock_ip_info(ip)
-        else:
-            city, isp = get_mock_ip_info(ip)
+        city, isp = query_ip_info(ip)
         
-        res = {'ip': ip, 'city': city, 'isp': isp, 'database': '真实数据库' if database_loaded else '模拟数据'}
+        res = {'ip': ip, 'city': city, 'isp': isp, 'database': database_type or '模拟数据'}
         print(res)
         
         # 使用json.dumps确保中文正确编码

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP查询API测试</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        .section h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #007cba;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 5px;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border: 1px solid #b0d4f1;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+        .error {
+            background-color: #ffe6e6;
+            border-color: #ff9999;
+            color: #cc0000;
+        }
+        .url-input {
+            margin-bottom: 15px;
+        }
+        .url-input input {
+            margin-bottom: 10px;
+        }
+        .deployment-info {
+            background-color: #e8f5e8;
+            border: 1px solid #4caf50;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IP查询API测试页面</h1>
+        
+        <div class="deployment-info">
+            <h3>部署方式选择</h3>
+            <p><strong>Python Flask版本：</strong> 适合本地开发，默认端口8889</p>
+            <p><strong>Cloudflare Workers版本：</strong> 适合生产环境，全球CDN加速</p>
+        </div>
+
+        <div class="section">
+            <h2>API服务器配置</h2>
+            <div class="url-input">
+                <label for="apiUrl">API服务器地址：</label>
+                <input type="text" id="apiUrl" value="http://localhost:8889" placeholder="输入API服务器地址">
+                <button onclick="setApiUrl('http://localhost:8889')">本地Flask</button>
+                <button onclick="setApiUrl('https://your-worker.your-subdomain.workers.dev')">Cloudflare Workers</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>1. 获取访客IP信息</h2>
+            <p>获取当前访客的IP地址和地理位置信息</p>
+            <button onclick="getVisitorIP()">获取我的IP信息</button>
+            <div id="visitorResult" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. 查询指定IP地址</h2>
+            <div class="input-group">
+                <label for="ipInput">IP地址：</label>
+                <input type="text" id="ipInput" placeholder="例如：8.8.8.8" value="8.8.8.8">
+            </div>
+            <button onclick="queryIP()">查询IP信息</button>
+            <div id="queryResult" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>3. 批量测试</h2>
+            <p>测试常用的DNS服务器IP地址</p>
+            <button onclick="batchTest()">批量测试</button>
+            <div id="batchResult" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        let apiBaseUrl = 'http://localhost:8889';
+
+        function setApiUrl(url) {
+            apiBaseUrl = url;
+            document.getElementById('apiUrl').value = url;
+        }
+
+        function updateApiUrl() {
+            apiBaseUrl = document.getElementById('apiUrl').value;
+        }
+
+        // 监听输入框变化
+        document.getElementById('apiUrl').addEventListener('input', updateApiUrl);
+
+        async function getVisitorIP() {
+            const resultDiv = document.getElementById('visitorResult');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '正在获取...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${apiBaseUrl}/`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    resultDiv.textContent = `错误: ${data.error || '请求失败'}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `网络错误: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function queryIP() {
+            const ip = document.getElementById('ipInput').value.trim();
+            const resultDiv = document.getElementById('queryResult');
+            
+            if (!ip) {
+                alert('请输入IP地址');
+                return;
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '正在查询...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${apiBaseUrl}/ip?ip=${encodeURIComponent(ip)}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    resultDiv.textContent = `错误: ${data.error || '请求失败'}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `网络错误: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function batchTest() {
+            const testIPs = [
+                '8.8.8.8',
+                '1.1.1.1', 
+                '114.114.114.114',
+                '223.5.5.5',
+                '119.29.29.29',
+                '180.76.76.76'
+            ];
+
+            const resultDiv = document.getElementById('batchResult');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '正在批量测试...';
+            resultDiv.className = 'result';
+
+            try {
+                const results = [];
+                for (const ip of testIPs) {
+                    const response = await fetch(`${apiBaseUrl}/ip?ip=${ip}`);
+                    const data = await response.json();
+                    results.push(`${ip}: ${data.city} - ${data.isp}`);
+                }
+                
+                resultDiv.textContent = results.join('\n');
+            } catch (error) {
+                resultDiv.textContent = `批量测试失败: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        // 页面加载时自动获取访客IP
+        window.onload = function() {
+            // 可以选择是否自动获取
+            // getVisitorIP();
+        };
+    </script>
+</body>
+</html>

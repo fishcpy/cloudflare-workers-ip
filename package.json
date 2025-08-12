@@ -1,0 +1,26 @@
+{
+  "name": "ip-api-cloudflare-workers",
+  "version": "1.0.0",
+  "description": "IP查询API - Cloudflare Workers版本",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "tail": "wrangler tail",
+    "test": "wrangler dev --local"
+  },
+  "keywords": [
+    "ip",
+    "api",
+    "cloudflare",
+    "workers",
+    "geolocation"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

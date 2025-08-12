@@ -1,0 +1,21 @@
+name = "ip-api"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# 环境配置
+[env.production]
+name = "ip-api-prod"
+
+[env.staging]
+name = "ip-api-staging"
+
+# 自定义域名配置（可选）
+# [[env.production.routes]]
+# pattern = "ip.api.fis.ink/*"
+# zone_name = "fis.ink"
+
+# KV存储配置（如果需要缓存IP数据）
+# [[kv_namespaces]]
+# binding = "IP_CACHE"
+# id = "your-kv-namespace-id"
+# preview_id = "your-preview-kv-namespace-id"

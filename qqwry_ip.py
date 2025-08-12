@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import ipaddress
 
 from qqwry import QQwry
 import flask
@@ -111,31 +112,56 @@ def get_mock_ip_info(ip):
         '114.114.114.114': {'city': '中国', 'isp': '114DNS'},
         '223.5.5.5': {'city': '中国杭州', 'isp': '阿里云DNS'},
         '119.29.29.29': {'city': '中国深圳', 'isp': '腾讯DNS'},
+        # IPv6示例
+        '2001:4860:4860::8888': {'city': '美国', 'isp': 'Google IPv6 DNS'},
+        '2606:4700:4700::1111': {'city': '美国', 'isp': 'Cloudflare IPv6 DNS'},
+        '2400:3200::1': {'city': '中国', 'isp': '阿里云IPv6 DNS'},
+        '240c::6666': {'city': '中国', 'isp': '下一代互联网IPv6 DNS'},
     }
     
     if ip in mock_data:
         return mock_data[ip]['city'], mock_data[ip]['isp']
     
-    # 详细的IP段判断
-    if ip.startswith('192.168.'):
-        return '私有网络(C类)', '局域网设备'
-    elif ip.startswith('10.'):
-        return '私有网络(A类)', '企业内网'
-    elif ip.startswith('172.'):
-        # 检查是否在172.16.0.0-172.31.255.255范围内
-        parts = ip.split('.')
-        if len(parts) >= 2 and 16 <= int(parts[1]) <= 31:
-            return '私有网络(B类)', '企业内网'
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+        
+        if ip_obj.version == 6:
+            # IPv6地址处理
+            if ip_obj.is_loopback:
+                return '本地回环(IPv6)', '本机'
+            elif ip_obj.is_private:
+                return '私有网络(IPv6)', '局域网设备'
+            elif ip_obj.is_link_local:
+                return '链路本地(IPv6)', '本地链路'
+            elif ip_obj.is_multicast:
+                return '组播地址(IPv6)', '多播网络'
+            elif str(ip_obj).startswith('2001:db8:'):
+                return '文档地址(IPv6)', '测试网络'
+            else:
+                return '未知地区(IPv6)', '未知运营商'
         else:
-            return '未知地区', '未知运营商'
-    elif ip.startswith('127.'):
-        return '本地回环', '本机'
-    elif ip.startswith('169.254.'):
-        return 'APIPA地址', '自动配置'
-    elif ip.startswith('224.') or ip.startswith('225.') or ip.startswith('226.') or ip.startswith('227.') or ip.startswith('228.') or ip.startswith('229.') or ip.startswith('230.') or ip.startswith('231.') or ip.startswith('232.') or ip.startswith('233.') or ip.startswith('234.') or ip.startswith('235.') or ip.startswith('236.') or ip.startswith('237.') or ip.startswith('238.') or ip.startswith('239.'):
-        return '组播地址', '多播网络'
-    else:
-        return '未知地区', '未知运营商'
+            # IPv4地址处理
+            if ip.startswith('192.168.'):
+                return '私有网络(C类)', '局域网设备'
+            elif ip.startswith('10.'):
+                return '私有网络(A类)', '企业内网'
+            elif ip.startswith('172.'):
+                # 检查是否在172.16.0.0-172.31.255.255范围内
+                parts = ip.split('.')
+                if len(parts) >= 2 and 16 <= int(parts[1]) <= 31:
+                    return '私有网络(B类)', '企业内网'
+                else:
+                    return '未知地区', '未知运营商'
+            elif ip.startswith('127.'):
+                return '本地回环', '本机'
+            elif ip.startswith('169.254.'):
+                return 'APIPA地址', '自动配置'
+            elif ip.startswith('224.') or ip.startswith('225.') or ip.startswith('226.') or ip.startswith('227.') or ip.startswith('228.') or ip.startswith('229.') or ip.startswith('230.') or ip.startswith('231.') or ip.startswith('232.') or ip.startswith('233.') or ip.startswith('234.') or ip.startswith('235.') or ip.startswith('236.') or ip.startswith('237.') or ip.startswith('238.') or ip.startswith('239.'):
+                return '组播地址', '多播网络'
+            else:
+                return '未知地区', '未知运营商'
+    except ValueError:
+        return '无效IP地址', '格式错误'
 
 load_ip_database()
 
@@ -172,9 +198,10 @@ def location():
         if not ip:
             return jsonify({'error': '请提供IP参数'}), 400
         
-        # 简单的IP格式验证
-        ip_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
-        if not re.match(ip_pattern, ip):
+        # IP格式验证（支持IPv4和IPv6）
+        try:
+            ipaddress.ip_address(ip)
+        except ValueError:
             return jsonify({'error': 'IP地址格式不正确'}), 400
         
         city, isp = query_ip_info(ip)

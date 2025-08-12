@@ -10,7 +10,12 @@ const mockData = {
   '119.29.29.29': { city: '中国深圳', isp: '腾讯DNS' },
   '180.76.76.76': { city: '中国北京', isp: '百度DNS' },
   '208.67.222.222': { city: '美国', isp: 'OpenDNS' },
-  '9.9.9.9': { city: '美国', isp: 'Quad9 DNS' }
+  '9.9.9.9': { city: '美国', isp: 'Quad9 DNS' },
+  // IPv6示例
+  '2001:4860:4860::8888': { city: '美国', isp: 'Google IPv6 DNS' },
+  '2606:4700:4700::1111': { city: '美国', isp: 'Cloudflare IPv6 DNS' },
+  '2400:3200::1': { city: '中国', isp: '阿里云IPv6 DNS' },
+  '240c::6666': { city: '中国', isp: '下一代互联网IPv6 DNS' }
 };
 
 // 获取模拟IP信息
@@ -19,7 +24,24 @@ function getMockIpInfo(ip) {
     return { city: mockData[ip].city, isp: mockData[ip].isp };
   }
   
-  // 详细的IP段判断
+  // IPv6地址处理
+  if (ip.includes(':')) {
+    if (ip === '::1') {
+      return { city: '本地回环(IPv6)', isp: '本机' };
+    } else if (ip.startsWith('fe80:')) {
+      return { city: '链路本地(IPv6)', isp: '本地链路' };
+    } else if (ip.startsWith('fc00:') || ip.startsWith('fd00:')) {
+      return { city: '私有网络(IPv6)', isp: '局域网设备' };
+    } else if (ip.startsWith('ff00:')) {
+      return { city: '组播地址(IPv6)', isp: '多播网络' };
+    } else if (ip.startsWith('2001:db8:')) {
+      return { city: '文档地址(IPv6)', isp: '测试网络' };
+    } else {
+      return { city: '未知地区(IPv6)', isp: '未知运营商' };
+    }
+  }
+  
+  // IPv4地址处理
   if (ip.startsWith('192.168.')) {
     return { city: '私有网络(C类)', isp: '局域网设备' };
   } else if (ip.startsWith('10.')) {
@@ -48,16 +70,28 @@ function getMockIpInfo(ip) {
   }
 }
 
-// 验证IP地址格式
+// 验证IP地址格式（支持IPv4和IPv6）
 function isValidIP(ip) {
-  const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-  if (!ipPattern.test(ip)) return false;
+  // IPv4验证
+  const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+  if (ipv4Pattern.test(ip)) {
+    const parts = ip.split('.');
+    return parts.every(part => {
+      const num = parseInt(part, 10);
+      return num >= 0 && num <= 255;
+    });
+  }
   
-  const parts = ip.split('.');
-  return parts.every(part => {
-    const num = parseInt(part, 10);
-    return num >= 0 && num <= 255;
-  });
+  // IPv6验证（简化版）
+  if (ip.includes(':')) {
+    // 基本的IPv6格式检查
+    const ipv6Pattern = /^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$/;
+    const compressedPattern = /^([0-9a-fA-F]{0,4}:)*::([0-9a-fA-F]{0,4}:)*[0-9a-fA-F]{0,4}$/;
+    
+    return ipv6Pattern.test(ip) || compressedPattern.test(ip) || ip === '::1';
+  }
+  
+  return false;
 }
 
 // 获取访客真实IP

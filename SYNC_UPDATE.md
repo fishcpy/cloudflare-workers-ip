@@ -29,21 +29,41 @@
    - 本地版本：真实数据库查询，更准确
    - Cloudflare版本：Cloudflare地理数据 + 模拟数据，适合CDN部署
 
+## 最新修复 (2024-12-19)
+
+### 问题修复
+- ✅ **IP查询功能同步**：Cloudflare版本现在使用真实的第三方API数据
+- ✅ **数据格式统一**：两个版本现在返回相同的数据格式
+- ✅ **API集成**：集成ip-api.com作为备用数据源
+- ✅ **错误处理**：API失败时自动回退到模拟数据
+
+### 技术改进
+- 使用ip-api.com获取真实IP地理信息
+- 格式化输出与本地版本保持一致（如：中国–北京–北京–海淀区）
+- 增强错误处理和数据回退机制
+- 保持IPv6支持完整性
+
 ## 部署建议
 
-1. **本地开发**：使用Python版本，数据更准确
-2. **生产环境**：部署Cloudflare Worker版本，全球CDN加速
-3. **数据同步**：定期更新qqwry.dat数据库文件
+1. **本地开发**：使用Python版本，QQwry数据库更准确
+2. **生产环境**：使用Cloudflare Worker版本，全球CDN加速 + 第三方API数据
+3. **数据库升级**：添加`.czdb`文件和密钥后，两个版本都可使用CZDB数据库
 
 ## 测试用例
 
-### IPv4测试
-- `123.112.18.121` → 中国–北京–北京–海淀区, 联通
-- `8.8.8.8` → 美国, Google DNS
+```bash
+# IPv4测试
+curl "http://localhost:8889/ip?ip=123.112.18.121"
+curl "https://your-worker.your-subdomain.workers.dev/ip?ip=123.112.18.121"
 
-### IPv6测试
-- `2001:4860:4860::8888` → 美国, Google IPv6 DNS
-- `fe80::1` → 链路本地(IPv6), 本地链路
+# IPv6测试  
+curl "http://localhost:8889/ip?ip=2001:4860:4860::8888"
+curl "https://your-worker.your-subdomain.workers.dev/ip?ip=2001:4860:4860::8888"
+
+# 访客IP查询
+curl "http://localhost:8889/"
+curl "https://your-worker.your-subdomain.workers.dev/"
+```
 
 ## 注意事项
 

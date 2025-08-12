@@ -1,21 +1,16 @@
 // Cloudflare Workers IP查询API
 // 支持获取访客IP信息和查询指定IP地址信息
 
-// 模拟IP数据
+// 模拟IP数据库
 const mockData = {
-  '8.8.8.8': { city: '美国', isp: 'Google DNS' },
-  '1.1.1.1': { city: '美国', isp: 'Cloudflare DNS' },
-  '114.114.114.114': { city: '中国', isp: '114DNS' },
-  '223.5.5.5': { city: '中国杭州', isp: '阿里云DNS' },
-  '119.29.29.29': { city: '中国深圳', isp: '腾讯DNS' },
-  '180.76.76.76': { city: '中国北京', isp: '百度DNS' },
-  '208.67.222.222': { city: '美国', isp: 'OpenDNS' },
-  '9.9.9.9': { city: '美国', isp: 'Quad9 DNS' },
-  // IPv6示例
-  '2001:4860:4860::8888': { city: '美国', isp: 'Google IPv6 DNS' },
-  '2606:4700:4700::1111': { city: '美国', isp: 'Cloudflare IPv6 DNS' },
-  '2400:3200::1': { city: '中国', isp: '阿里云IPv6 DNS' },
-  '240c::6666': { city: '中国', isp: '下一代互联网IPv6 DNS' }
+  '8.8.8.8': { city: '美国–加利福尼亚州–山景城', isp: 'Google LLC' },
+  '114.114.114.114': { city: '中国–江苏–南京', isp: '南京信风网络科技有限公司' },
+  '1.1.1.1': { city: '美国–加利福尼亚州–旧金山', isp: 'Cloudflare Inc' },
+  '223.5.5.5': { city: '中国–浙江–杭州', isp: '阿里云计算有限公司' },
+  '180.76.76.76': { city: '中国–北京–北京', isp: '百度在线网络技术(北京)有限公司' },
+  '123.112.18.121': { city: '中国–北京–北京–海淀区', isp: '联通' },
+  '2001:4860:4860::8888': { city: '美国–加利福尼亚州–山景城(IPv6)', isp: 'Google LLC' },
+  '2606:4700:4700::1111': { city: '美国–加利福尼亚州–旧金山(IPv6)', isp: 'Cloudflare Inc' }
 };
 
 // 获取模拟IP信息
@@ -209,15 +204,45 @@ async function handleIPQuery(request) {
       });
     }
     
-    // 对于查询的IP，我们使用模拟数据
-    // 在实际应用中，可以调用第三方IP查询API
-    const ipInfo = getMockIpInfo(ip);
+    // 尝试使用第三方IP查询API获取真实数据
+    let ipInfo;
+    let database = 'QQwry';
+    
+    try {
+      // 调用ip-api.com获取IP信息
+      const apiResponse = await fetch(`http://ip-api.com/json/${ip}?lang=zh-CN`);
+      if (apiResponse.ok) {
+        const data = await apiResponse.json();
+        if (data.status === 'success') {
+          // 格式化为与本地版本一致的格式
+          let location = '';
+          if (data.country) location += data.country;
+          if (data.regionName && data.regionName !== data.country) location += `–${data.regionName}`;
+          if (data.city && data.city !== data.regionName) location += `–${data.city}`;
+          if (data.district) location += `–${data.district}`;
+          
+          ipInfo = {
+            city: location || '未知地区',
+            isp: data.isp || '未知运营商'
+          };
+          database = 'ip-api.com';
+        } else {
+          throw new Error('API查询失败');
+        }
+      } else {
+        throw new Error('API请求失败');
+      }
+    } catch (error) {
+      // 如果API查询失败，使用模拟数据
+      ipInfo = getMockIpInfo(ip);
+      database = '模拟数据';
+    }
     
     const response = {
       ip: ip,
       city: ipInfo.city,
       isp: ipInfo.isp,
-      database: '模拟数据'
+      database: database
     };
     
     return new Response(JSON.stringify(response, null, 2), {
